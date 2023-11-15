@@ -19,11 +19,6 @@ stroke_size.set(1)
 stroke_color = StringVar()
 stroke_color.set("black")
 
-previousColor = StringVar()
-previousColor.set("white")
-
-previousColor2 = StringVar()
-previousColor2.set("white")
 
 # variables for pencil
 prevPoint = [0, 0]
@@ -36,11 +31,11 @@ textValue = StringVar()
 
 def usePencil():
     stroke_color.set("black")
-    canvas["cursor"] = "arrow"
+    canvas["cursor"] = "pencil"
 
 def useBrush():
     stroke_color.set("black")
-    canvas["cursor"] = "arrow"
+    canvas["cursor"] = "boat"
 
 def useEraser():
     stroke_color.set("white")
@@ -52,11 +47,6 @@ def selectColor():
         stroke_color.set("black")
     else:
         stroke_color.set(selectedColor[1])
-        previousColor2.set(previousColor.get())
-        previousColor.set(selectedColor[1])
-
-        previousColorButton["bg"] = previousColor.get()
-        previousColor2Button["bg"] = previousColor2.get()
 
 def paint(event):
     global prevPoint
