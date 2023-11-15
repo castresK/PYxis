@@ -40,17 +40,17 @@ current_layer_index = 0
 # --------------------- functions -------------------------
 
 def usePencil():
-    global canvas  # Declare canvas as a global variable
+    global canvas  
     stroke_color.set("black")
     canvas["cursor"] = "pencil"
 
 def useBrush():
-    global canvas  # Declare canvas as a global variable
+    global canvas  
     stroke_color.set("black")
     canvas["cursor"] = "arrow"
 
 def useEraser():
-    global canvas  # Declare canvas as a global variable
+    global canvas  
     stroke_color.set("white")
     canvas["cursor"] = "dotbox"
 
@@ -153,7 +153,7 @@ def saveImage():
         messagebox.showinfo("NoodleDoodle: ", "Error occurred")
 
 def writeText(event):
-    global canvas  # Declare canvas as a global variable
+    global canvas  
     canvas.create_text(event.x, event.y, text=textValue.get())
 
 # ------------------- User Interface -------------------
