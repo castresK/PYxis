@@ -8,6 +8,9 @@ root = Tk()
 root.title("NoodleDoodle")
 root.geometry("1100x600")
 
+# Declare canvas as a global variable
+canvas = None
+
 # -------------- variables --------------------
 
 # stroke size options
@@ -19,7 +22,6 @@ stroke_size.set(1)
 stroke_color = StringVar()
 stroke_color.set("black")
 
-
 # variables for pencil
 prevPoint = [0, 0]
 currentPoint = [0, 0]
@@ -27,17 +29,28 @@ currentPoint = [0, 0]
 # variable for text
 textValue = StringVar()
 
+# Keep track of canvas actions
+canvas_actions = []
+current_action_index = -1
+
+# Variable to keep track of canvas layers
+canvas_layers = []
+current_layer_index = 0
+
 # --------------------- functions -------------------------
 
 def usePencil():
+    global canvas  # Declare canvas as a global variable
     stroke_color.set("black")
     canvas["cursor"] = "pencil"
 
 def useBrush():
+    global canvas  # Declare canvas as a global variable
     stroke_color.set("black")
-    canvas["cursor"] = "boat"
+    canvas["cursor"] = "arrow"
 
 def useEraser():
+    global canvas  # Declare canvas as a global variable
     stroke_color.set("white")
     canvas["cursor"] = "dotbox"
 
@@ -51,14 +64,19 @@ def selectColor():
 def paint(event):
     global prevPoint
     global currentPoint
+    global canvas_layers
+    global current_layer_index
     x = event.x
     y = event.y
     currentPoint = [x, y]
-    # canvas.create_oval(x , y , x +5 , y + 5 , fill="black")
 
     if prevPoint != [0, 0]:
-        canvas.create_polygon(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],
-                               fill=stroke_color.get(), outline=stroke_color.get(), width=stroke_size.get())
+        # Draw on the current layer
+        canvas_layers[current_layer_index].create_line(
+            prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],
+            fill=stroke_color.get(), width=stroke_size.get()
+        )
+        save_canvas_action()
 
     prevPoint = currentPoint
 
@@ -66,20 +84,60 @@ def paint(event):
         prevPoint = [0, 0]
 
 def paintRight(event):
+    global prevPoint
+    global currentPoint
+    global canvas_layers
+    global current_layer_index
     x = event.x
     y = event.y
-    canvas.create_arc(x, y, x + stroke_size.get(), y + stroke_size.get(),
-                       fill=stroke_color.get(), outline=stroke_color.get(), width=stroke_size.get())
+    currentPoint = [x, y]
+
+    if prevPoint != [0, 0]:
+        # Draw on the current layer
+        canvas_layers[current_layer_index].create_polygon(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],fill=stroke_color.get(), outline=stroke_color.get(), width=stroke_size.get())
+        save_canvas_action()
+
+    prevPoint = currentPoint
+
+    if event.type == "5":
+        prevPoint = [0, 0]
 
 def redoImage():
-    fileLocation = filedialog.asksaveasfilename(defaultextension="jpg")
-    x = root.winfo_rootx()
-    y = root.winfo_rooty() - 50
-    # Add code to redo the image
+    global current_action_index
+    if current_action_index < len(canvas_actions) - 1:
+        current_action_index += 1
+        canvas.delete("all")
+        for action in canvas_actions[:current_action_index + 1]:
+            canvas.create_polygon(action["points"], fill=action["fill"],
+                                   outline=action["outline"], width=action["width"])
+
+def addLayer():
+    global canvas_layers
+    global current_layer_index
+    new_layer = Canvas(frame2, height=500, width=1100, bg="white")
+    new_layer.grid(row=0, column=0)
+    current_layer_index += 1
+    canvas_layers.append(new_layer)
 
 def undoImage():
-    # Add code to undo the image
-    pass
+    global current_action_index
+    if current_action_index > 0:
+        current_action_index -= 1
+        canvas.delete("all")
+        for action in canvas_actions[:current_action_index + 1]:
+            canvas.create_polygon(action["points"], fill=action["fill"],
+                                   outline=action["outline"], width=action["width"])
+
+def save_canvas_action():
+    global current_action_index
+    current_action_index += 1
+    canvas_data = {
+        "points": canvas.find_all(),
+        "fill": stroke_color.get(),
+        "outline": stroke_color.get(),
+        "width": stroke_size.get(),
+    }
+    canvas_actions.append(canvas_data)
 
 def saveImage():
     try:
@@ -91,11 +149,11 @@ def saveImage():
         showImage = messagebox.askyesno("NoodleDoodle", "Do you want to open image?")
         if showImage:
             img.show()
-
     except Exception as e:
         messagebox.showinfo("NoodleDoodle: ", "Error occurred")
 
 def writeText(event):
+    global canvas  # Declare canvas as a global variable
     canvas.create_text(event.x, event.y, text=textValue.get())
 
 # ------------------- User Interface -------------------
@@ -165,11 +223,11 @@ saveImageFrame.grid(row=0, column=4)
 save = Button(saveImageFrame, text="Save", bg="white", width=10, command=saveImage)
 save.grid(row=0, column=0)
 redo = Button(saveImageFrame, text="Redo", bg="white", width=10, command=redoImage)
-redo.grid(row=1, column=0)
+redo.grid(row=0, column=1)
 undo = Button(saveImageFrame, text="Undo", bg="white", width=10, command=undoImage)
-undo.grid(row=2, column=0)
-addlayer = Button(saveImageFrame, text="Layers", bg="white", width=10, )
-addlayer.grid(row=3, column=0)
+undo.grid(row=0, column=2)
+addlayer = Button(saveImageFrame, text="Layers", bg="white", width=10, command=addLayer )
+addlayer.grid(row=0, column=3)
 
 
 # Frame - 2 - Canvas
@@ -177,12 +235,16 @@ addlayer.grid(row=3, column=0)
 frame2 = Frame(root, height=500, width=1100, bg="yellow")
 frame2.grid(row=1, column=0)
 
+# Create the canvas globally
 canvas = Canvas(frame2, height=500, width=1100, bg="white")
 canvas.grid(row=0, column=0)
 canvas.bind("<B1-Motion>", paint)
 canvas.bind("<ButtonRelease-1>", paint)
 canvas.bind("<B3-Motion>", paintRight)
 canvas.bind("<Button-2>", writeText)
+
+root.bind("<Control-z>", lambda event: undoImage())
+root.bind("<Control-y>", lambda event: redoImage())
 
 root.resizable(False, False)
 root.mainloop()
