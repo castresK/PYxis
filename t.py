@@ -14,7 +14,9 @@ canvas = None
 # -------------- variables --------------------
 
 # stroke size options
-options = [1, 2, 3, 4, 5, 10, 15, 20]
+brush_options = [5, 10, 15,]
+pencil_options = [1, 2, 3]
+eraser_options = [3, 20, 25, 30]
 
 stroke_size = IntVar()
 stroke_size.set(1)
@@ -28,31 +30,40 @@ currentPoint = [0, 0]
 
 # variable for text
 textValue = StringVar()
+ 
+ #canvas
+canvas = None
 
-# Keep track of canvas actions
 canvas_actions = []
 current_action_index = -1
-
-# Variable to keep track of canvas layers
-canvas_layers = []
-current_layer_index = 0
-
 # --------------------- functions -------------------------
 
 def usePencil():
-    global canvas  
+    global canvas
     stroke_color.set("black")
     canvas["cursor"] = "pencil"
+    sizeList['menu'].delete(0, 'end')  
+    for size in pencil_options:
+        sizeList['menu'].add_command(label=str(size), command=lambda s=size: stroke_size.set(s))
+    stroke_size.set(1)
 
 def useBrush():
-    global canvas  
+    global canvas
     stroke_color.set("black")
     canvas["cursor"] = "arrow"
+    sizeList['menu'].delete(0, 'end')  
+    for size in brush_options:
+        sizeList['menu'].add_command(label=str(size), command=lambda s=size: stroke_size.set(s))
+    stroke_size.set(5) 
 
 def useEraser():
     global canvas  
     stroke_color.set("white")
     canvas["cursor"] = "dotbox"
+    sizeList['menu'].delete(0, 'end')  
+    for size in eraser_options:
+        sizeList['menu'].add_command(label=str(size), command=lambda s=size: stroke_size.set(s))
+    stroke_size.set(3)
 
 def selectColor():
     selectedColor = colorchooser.askcolor("blue", title="Select Color")
@@ -71,12 +82,7 @@ def paint(event):
     currentPoint = [x, y]
 
     if prevPoint != [0, 0]:
-        # Draw on the current layer
-        canvas_layers[current_layer_index].create_line(
-            prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],
-            fill=stroke_color.get(), width=stroke_size.get()
-        )
-        save_canvas_action()
+        canvas.create_line(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],fill=stroke_color.get(), width=stroke_size.get())
 
     prevPoint = currentPoint
 
@@ -86,15 +92,12 @@ def paint(event):
 def paintRight(event):
     global prevPoint
     global currentPoint
-    global canvas_layers
-    global current_layer_index
     x = event.x
     y = event.y
     currentPoint = [x, y]
 
     if prevPoint != [0, 0]:
-        # Draw on the current layer
-        canvas_layers[current_layer_index].create_polygon(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],fill=stroke_color.get(), outline=stroke_color.get(), width=stroke_size.get())
+        canvas.create_polygon(prevPoint[0], prevPoint[1], currentPoint[0], currentPoint[1],fill=stroke_color.get(), outline=stroke_color.get(), width=stroke_size.get())
         save_canvas_action()
 
     prevPoint = currentPoint
@@ -102,31 +105,28 @@ def paintRight(event):
     if event.type == "5":
         prevPoint = [0, 0]
 
-def redoImage():
+def undoImage():
     global current_action_index
-    if current_action_index < len(canvas_actions) - 1:
-        current_action_index += 1
+    if current_action_index < len(canvas_actions):
         canvas.delete("all")
         for action in canvas_actions[:current_action_index + 1]:
-            canvas.create_polygon(action["points"], fill=action["fill"],
-                                   outline=action["outline"], width=action["width"])
-
-def addLayer():
-    global canvas_layers
-    global current_layer_index
-    new_layer = Canvas(frame2, height=500, width=1100, bg="white")
-    new_layer.grid(row=0, column=0)
-    current_layer_index += 1
-    canvas_layers.append(new_layer)
-
-def undoImage():
+            if action["type"] == "line":
+                canvas.create_line(action["points"], fill=action["fill"], width=action["width"])
+            elif action["type"] == "polygon":
+                canvas.create_polygon(action["points"], fill=action["fill"], outline=action["outline"], width=action["width"])
+        current_action_index += 1
+    
+def redoImage():
     global current_action_index
     if current_action_index > 0:
         current_action_index -= 1
         canvas.delete("all")
-        for action in canvas_actions[:current_action_index + 1]:
-            canvas.create_polygon(action["points"], fill=action["fill"],
-                                   outline=action["outline"], width=action["width"])
+        for action in canvas_actions[:current_action_index]:
+            if action["type"] == "line":
+                canvas.create_line(action["points"], fill=action["fill"], width=action["width"])
+            elif action["type"] == "polygon":
+                canvas.create_polygon(action["points"], fill=action["fill"], outline=action["outline"], width=action["width"])
+
 
 def save_canvas_action():
     global current_action_index
@@ -152,9 +152,6 @@ def saveImage():
     except Exception as e:
         messagebox.showinfo("NoodleDoodle: ", "Error occurred")
 
-def writeText(event):
-    global canvas  
-    canvas.create_text(event.x, event.y, text=textValue.get())
 
 # ------------------- User Interface -------------------
 
@@ -182,12 +179,9 @@ eraser.grid(row=4, column=0)
 sizeFrame = Frame(frame1, height=100, width=100, relief=SUNKEN, borderwidth=3)
 sizeFrame.grid(row=0, column=1)
 
-defaultButton = Button(sizeFrame, text="Default", width=10, command=usePencil)
-defaultButton.grid(row=0, column=0)
-sizeList = OptionMenu(sizeFrame, stroke_size, *options)
-sizeList.grid(row=1, column=0)
-sizeLabel = Label(sizeFrame, text="Size", width=10)
-sizeLabel.grid(row=2, column=0)
+strokeSize = Label(sizeFrame, text="Size", width=10,)
+strokeSize.grid(row=0, column=0)
+
 
 # colorBoxFrame
 
@@ -215,6 +209,14 @@ orangeButton.grid(row=1, column=1)
 purpleButton = Button(colorsFrame, text="Purple", bg="purple", width=10, command=lambda: stroke_color.set("purple"))
 purpleButton.grid(row=2, column=1)
 
+#option menu
+
+sizeList = OptionMenu(sizeFrame, stroke_size, *pencil_options)
+sizeList.grid(row=1, column=0)
+
+sizeLabel = Label(sizeFrame, text="Size", width=10)
+sizeLabel.grid(row=2, column=0)
+
 # saveImageFrame
 
 saveImageFrame = Frame(frame1, height=100, width=100, relief=SUNKEN, borderwidth=3)
@@ -223,12 +225,9 @@ saveImageFrame.grid(row=0, column=4)
 save = Button(saveImageFrame, text="Save", bg="white", width=10, command=saveImage)
 save.grid(row=0, column=0)
 redo = Button(saveImageFrame, text="Redo", bg="white", width=10, command=redoImage)
-redo.grid(row=0, column=1)
+redo.grid(row=0, column=2)
 undo = Button(saveImageFrame, text="Undo", bg="white", width=10, command=undoImage)
-undo.grid(row=0, column=2)
-addlayer = Button(saveImageFrame, text="Layers", bg="white", width=10, command=addLayer )
-addlayer.grid(row=0, column=3)
-
+undo.grid(row=0, column=1)
 
 # Frame - 2 - Canvas
 
@@ -241,7 +240,6 @@ canvas.grid(row=0, column=0)
 canvas.bind("<B1-Motion>", paint)
 canvas.bind("<ButtonRelease-1>", paint)
 canvas.bind("<B3-Motion>", paintRight)
-canvas.bind("<Button-2>", writeText)
 
 root.bind("<Control-z>", lambda event: undoImage())
 root.bind("<Control-y>", lambda event: redoImage())
