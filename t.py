@@ -105,7 +105,7 @@ def paintRight(event):
     if event.type == "5":
         prevPoint = [0, 0]
 
-def undoImage():
+def clearImage():
     global current_action_index
     if current_action_index < len(canvas_actions):
         canvas.delete("all")
@@ -116,16 +116,7 @@ def undoImage():
                 canvas.create_polygon(action["points"], fill=action["fill"], outline=action["outline"], width=action["width"])
         current_action_index += 1
     
-def redoImage():
-    global current_action_index
-    if current_action_index > 0:
-        current_action_index -= 1
-        canvas.delete("all")
-        for action in canvas_actions[:current_action_index]:
-            if action["type"] == "line":
-                canvas.create_line(action["points"], fill=action["fill"], width=action["width"])
-            elif action["type"] == "polygon":
-                canvas.create_polygon(action["points"], fill=action["fill"], outline=action["outline"], width=action["width"])
+
 
 
 def save_canvas_action():
@@ -141,16 +132,20 @@ def save_canvas_action():
 
 def saveImage():
     try:
-        fileLocation = filedialog.asksaveasfilename(defaultextension="jpg")
-        x = root.winfo_rootx()
-        y = root.winfo_rooty() + 100
-        img = ImageGrab.grab(bbox=(x, y, x + 1100, y + 500))
-        img.save(fileLocation)
-        showImage = messagebox.askyesno("NoodleDoodle", "Do you want to open image?")
-        if showImage:
-            img.show()
+        fileLocation = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("JPG files", "*.jpg")])
+        if fileLocation:
+            x = root.winfo_rootx() + canvas.winfo_x()
+            y = root.winfo_rooty() + canvas.winfo_y() + 100
+            x1 = x + canvas.winfo_width()
+            y1 = y + canvas.winfo_height()
+            img = ImageGrab.grab(bbox=(x, y, x1, y1))
+            img.save(fileLocation)
+            showImage = messagebox.askyesno("NoodleDoodle", "Do you want to open the saved image?")
+            if showImage:
+                import os
+                os.startfile(fileLocation)  
     except Exception as e:
-        messagebox.showinfo("NoodleDoodle: ", "Error occurred")
+        messagebox.showinfo("NoodleDoodle", f"Error occurred: {e}")
 
 
 # ------------------- User Interface -------------------
@@ -224,10 +219,15 @@ saveImageFrame.grid(row=0, column=4)
 
 save = Button(saveImageFrame, text="Save", bg="white", width=10, command=saveImage)
 save.grid(row=0, column=0)
-redo = Button(saveImageFrame, text="Redo", bg="white", width=10, command=redoImage)
-redo.grid(row=0, column=2)
-undo = Button(saveImageFrame, text="Undo", bg="white", width=10, command=undoImage)
-undo.grid(row=0, column=1)
+
+
+# clearbutton frame
+
+clearImageFrame = Frame(frame1, height=100, width=100, relief=SUNKEN, borderwidth=3)
+clearImageFrame.grid(row=0, column=5)
+
+clear = Button(clearImageFrame, text="Clear Artwork", bg="white", width=10, command=clearImage)
+clear.grid(row=0, column=0)
 
 # Frame - 2 - Canvas
 
@@ -241,8 +241,7 @@ canvas.bind("<B1-Motion>", paint)
 canvas.bind("<ButtonRelease-1>", paint)
 canvas.bind("<B3-Motion>", paintRight)
 
-root.bind("<Control-z>", lambda event: undoImage())
-root.bind("<Control-y>", lambda event: redoImage())
+
 
 root.resizable(False, False)
 root.mainloop()
